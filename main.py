@@ -28,10 +28,8 @@ if __name__ == "__main__":
         "--auth-schemes=basic,digest,ntlm,negotiate",
         # Proxy auto-detection for corporate environments
         "--proxy-auto-detect",
-        # Popup and navigation handling
+        # Allow popups for auth flows
         "--disable-popup-blocking",
-        "--disable-web-security",
-        "--allow-running-insecure-content",
         # Performance flags for heavy dashboards like Power BI
         "--ignore-gpu-blocklist",
         "--enable-gpu-rasterization",
@@ -41,10 +39,10 @@ if __name__ == "__main__":
         "--disable-background-timer-throttling",
         "--disable-backgrounding-occluded-windows",
         "--disable-renderer-backgrounding",
-        # Additional Power BI and SharePoint compatibility
-        "--disable-features=VizDisplayCompositor",
-        "--enable-features=NetworkService",
-        "--disable-site-isolation-trials",
+        # Relax cookie restrictions to help Microsoft auth flows
+        "--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure,ThirdPartyStoragePartitioning",
+        # Additional compatibility
+        "--enable-features=NetworkService,OutOfBlinkCors",
     ]
     # If an explicit proxy server is defined, prefer it
     

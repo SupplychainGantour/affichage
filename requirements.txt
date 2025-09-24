@@ -1,0 +1,5 @@
+# PyQt6 Digital Display Application Requirements
+PyQt6==6.9.1
+PyQt6-WebEngine==6.9.0
+requests==2.32.4
+requests-ntlm>=1.2.0
