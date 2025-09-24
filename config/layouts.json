@@ -1,0 +1,112 @@
+{
+  "2-Column Equal": {
+    "description": "Two windows side-by-side, sharing the screen equally.",
+    "slots": [
+      {
+        "id": "Left Panel",
+        "geometry": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 0.5,
+          "height": 1.0
+        }
+      },
+      {
+        "id": "Right Panel",
+        "geometry": {
+          "x": 0.5,
+          "y": 0.0,
+          "width": 0.5,
+          "height": 1.0
+        }
+      }
+    ]
+  },
+  "Main with Right Sidebar": {
+    "description": "A large main content area with a smaller sidebar on the right.",
+    "slots": [
+      {
+        "id": "Main Content",
+        "geometry": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 0.75,
+          "height": 1.0
+        }
+      },
+      {
+        "id": "Sidebar",
+        "geometry": {
+          "x": 0.75,
+          "y": 0.0,
+          "width": 0.25,
+          "height": 1.0
+        }
+      }
+    ]
+  },
+  "3-Panel Vertical": {
+    "description": "Three stacked horizontal panels.",
+    "slots": [
+      {
+        "id": "Top Panel",
+        "geometry": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 1.0,
+          "height": 0.33
+        }
+      },
+      {
+        "id": "Middle Panel",
+        "geometry": {
+          "x": 0.0,
+          "y": 0.33,
+          "width": 1.0,
+          "height": 0.34
+        }
+      },
+      {
+        "id": "Bottom Panel",
+        "geometry": {
+          "x": 0.0,
+          "y": 0.67,
+          "width": 1.0,
+          "height": 0.33
+        }
+      }
+    ]
+  },
+  "Custom1": {
+    "description": "Mine PI + Power BI",
+    "slots": [
+      {
+        "id": "Slot for google_search",
+        "geometry": {
+          "x": 0.0,
+          "y": 0.003703703703703704,
+          "width": 0.6880208333333333,
+          "height": 0.6074074074074074
+        }
+      },
+      {
+        "id": "Slot for wikipedia_main",
+        "geometry": {
+          "x": 0.6880208333333333,
+          "y": 0.002777777777777778,
+          "width": 0.3125,
+          "height": 0.7407407407407407
+        }
+      },
+      {
+        "id": "Slot for youtube_player",
+        "geometry": {
+          "x": 0.026041666666666668,
+          "y": 0.6111111111111112,
+          "width": 0.4166666666666667,
+          "height": 0.37037037037037035
+        }
+      }
+    ]
+  }
+}
