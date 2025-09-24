@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QRect, QUrl, QPoint, QTimer
-from PyQt6.QtWidgets import QMainWindow, QWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget, QSlider, QLabel, QHBoxLayout
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtGui import QPainter, QColor, QPen, QBrush
@@ -14,6 +14,87 @@ class EditOverlay(QWidget):
         self._is_dragging = False
         self._drag_start_position = QPoint()
         self._resize_margin = 16
+        
+        # Create zoom slider widget - minimal design at bottom
+        self._zoom_widget = QWidget(self)
+        self._zoom_widget.setFixedSize(150, 25)
+        self._zoom_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(0, 0, 0, 150);
+                border-radius: 12px;
+                padding: 2px;
+            }
+            QSlider::groove:horizontal {
+                border: 2px solid rgba(0, 122, 204, 0.8);
+                height: 4px;
+                background: rgba(255, 255, 255, 0.9);
+                margin: 2px 0;
+                border-radius: 3px;
+            }
+            QSlider::handle:horizontal {
+                background: #007ACC;
+                border: 2px solid #ffffff;
+                width: 16px;
+                height: 16px;
+                margin: -6px 0;
+                border-radius: 8px;
+                box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3);
+            }
+            QSlider::handle:horizontal:hover {
+                background: #1e90ff;
+                border: 2px solid #ffffff;
+            }
+            QSlider::handle:horizontal:pressed {
+                background: #0066cc;
+            }
+        """)
+        
+        # Setup zoom controls - only slider, no label
+        layout = QHBoxLayout(self._zoom_widget)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(0)
+        
+        self._zoom_slider = QSlider(Qt.Orientation.Horizontal)
+        self._zoom_slider.setRange(25, 300)  # 25% to 300% zoom
+        self._zoom_slider.setValue(100)
+        
+        layout.addWidget(self._zoom_slider)
+        
+        # Connect zoom slider
+        self._zoom_slider.valueChanged.connect(self._on_zoom_changed)
+        
+        # Initially hide zoom widget
+        self._zoom_widget.hide()
+
+    def _on_zoom_changed(self, value):
+        """Handle zoom slider changes."""
+        zoom_factor = value / 100.0
+        
+        # Apply zoom to the parent browser window
+        if hasattr(self.parent(), 'browser'):
+            self.parent().browser.setZoomFactor(zoom_factor)
+
+    def show_zoom_controls(self):
+        """Show the zoom slider widget."""
+        self._zoom_widget.show()
+        self._position_zoom_widget()
+
+    def hide_zoom_controls(self):
+        """Hide the zoom slider widget."""
+        self._zoom_widget.hide()
+
+    def _position_zoom_widget(self):
+        """Position zoom widget at bottom-center of overlay."""
+        if self.width() > 0 and self.height() > 0:
+            x = (self.width() - self._zoom_widget.width()) // 2
+            y = self.height() - self._zoom_widget.height() - 15  # 15px from bottom
+            self._zoom_widget.move(x, y)
+
+    def resizeEvent(self, event):
+        """Reposition zoom widget when overlay is resized."""
+        super().resizeEvent(event)
+        if self._zoom_widget.isVisible():
+            self._position_zoom_widget()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -199,12 +280,14 @@ class BrowserWindow(QMainWindow):
         self.setGeometry(QRect(x, y, width, height))
 
     def set_edit_mode(self, enabled):
-        """Shows or hides the edit overlay."""
+        """Shows or hides the edit overlay with zoom controls."""
         if enabled:
             self.edit_overlay.setGeometry(self.rect())
             self.edit_overlay.show()
+            self.edit_overlay.show_zoom_controls()
             self.edit_overlay.raise_()
         else:
+            self.edit_overlay.hide_zoom_controls()
             self.edit_overlay.hide()
     
     def _on_auth_required(self, requestUrl, auth):
