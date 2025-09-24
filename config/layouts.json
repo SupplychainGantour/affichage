@@ -108,5 +108,37 @@
         }
       }
     ]
+  },
+  "UC_DEFAULT": {
+    "description": "Custom layout: UC_DEFAULT",
+    "slots": [
+      {
+        "id": "Slot for google_search",
+        "geometry": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 0.7,
+          "height": 0.7388888888888889
+        }
+      },
+      {
+        "id": "Slot for powerbi_report",
+        "geometry": {
+          "x": 0.690625,
+          "y": 0.0,
+          "width": 0.309375,
+          "height": 1.0
+        }
+      },
+      {
+        "id": "Slot for sharepoint_document",
+        "geometry": {
+          "x": 0.0,
+          "y": 0.725,
+          "width": 0.69453125,
+          "height": 0.2791666666666667
+        }
+      }
+    ]
   }
 }

@@ -21,12 +21,18 @@ if __name__ == "__main__":
 
     os.environ["QTWEBENGINE_REMOTE_DEBUGGING"] = "9222"
 
-    # Allow Windows Integrated Authentication (NTLM/Negotiate) for corporate domains
+    # Allow Windows Integrated Authentication for Power BI and corporate domains
     chrome_flags = [
-        "--auth-server-allowlist=*.ocpgroup.ma",
-        "--auth-negotiate-delegate-whitelist=*.ocpgroup.ma",
+        "--auth-server-allowlist=*.ocpgroup.ma,*.powerbi.com,*.microsoftonline.com,*.windows.net,*.sharepoint.com",
+        "--auth-negotiate-delegate-whitelist=*.ocpgroup.ma,*.powerbi.com,*.microsoftonline.com,*.windows.net,*.sharepoint.com",
         "--auth-schemes=basic,digest,ntlm,negotiate",
-        # Performance flags for heavy dashboards
+        # Proxy auto-detection for corporate environments
+        "--proxy-auto-detect",
+        # Popup and navigation handling
+        "--disable-popup-blocking",
+        "--disable-web-security",
+        "--allow-running-insecure-content",
+        # Performance flags for heavy dashboards like Power BI
         "--ignore-gpu-blocklist",
         "--enable-gpu-rasterization",
         "--enable-zero-copy",
@@ -35,6 +41,10 @@ if __name__ == "__main__":
         "--disable-background-timer-throttling",
         "--disable-backgrounding-occluded-windows",
         "--disable-renderer-backgrounding",
+        # Additional Power BI and SharePoint compatibility
+        "--disable-features=VizDisplayCompositor",
+        "--enable-features=NetworkService",
+        "--disable-site-isolation-trials",
     ]
     # If an explicit proxy server is defined, prefer it
     
@@ -55,5 +65,18 @@ if __name__ == "__main__":
         layouts_path="config/layouts.json"
     )
     controller.run()
+    
+    # Ensure proper cleanup on exit
+    def cleanup_on_exit():
+        print("App closing - ensuring session data is saved...")
+        try:
+            from app.core.profile_manager import WebProfileManager
+            profile_manager = WebProfileManager()
+            profile_manager.ensure_session_persistence()
+            print("Profile info:", profile_manager.get_profile_info())
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
+    
+    app.aboutToQuit.connect(cleanup_on_exit)
 
     sys.exit(app.exec())

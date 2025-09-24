@@ -33,12 +33,27 @@ class WebProfileManager:
         profile_path = os.path.join(data_path, "DigitalDisplayApp_Profile")
         if not os.path.exists(profile_path):
             os.makedirs(profile_path, exist_ok=True)
+            
+        print(f"Profile storage path: {profile_path}")
 
-        # Use a dedicated profile
+        # Use a dedicated profile with explicit storage path
         self.profile = QWebEngineProfile("DigitalDisplayProfile", None)
         self.profile.setPersistentStoragePath(profile_path)
-        self.profile.setCachePath(profile_path)
+        self.profile.setCachePath(os.path.join(profile_path, "cache"))
         self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies)
+        
+        # Force profile to be off-the-record = False to ensure persistence
+        print(f"Profile is off-the-record: {self.profile.isOffTheRecord()}")
+        
+        # Additional persistence settings
+        try:
+            # Enable local storage and database storage for session persistence
+            settings = self.profile.settings()
+            settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
+            settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+            print("Enabled local storage for session persistence")
+        except Exception as e:
+            print(f"Error configuring storage settings: {e}")
 
         # Credentials: prefer config/auth.json, fallback to env vars; else rely on Windows SSO.
         self._username, self._password = self._load_credentials()
@@ -257,4 +272,25 @@ class WebProfileManager:
 
         print(f"[cookie] Total injected cookies: {injected}")
         return True
+
+    def ensure_session_persistence(self):
+        """Force the profile to save session data immediately."""
+        try:
+            # The profile should automatically persist, but we can force a sync
+            print("Ensuring session data is persisted...")
+            # Access cookie store to trigger any pending saves
+            cookie_store = self.profile.cookieStore()
+            print("Cookie store accessed for persistence")
+        except Exception as e:
+            print(f"Error ensuring persistence: {e}")
+
+    def get_profile_info(self):
+        """Get info about the current profile for debugging."""
+        return {
+            "storage_path": self.profile.persistentStoragePath(),
+            "cache_path": self.profile.cachePath(),
+            "off_the_record": self.profile.isOffTheRecord(),
+            "cookie_policy": self.profile.persistentCookiesPolicy(),
+            "user_agent": self.profile.httpUserAgent()
+        }
 

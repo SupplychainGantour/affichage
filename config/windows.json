@@ -8,6 +8,26 @@
       "width": 800,
       "height": 600
     }
+  },
+  {
+    "id": "powerbi_report",
+    "url": "https://app.powerbi.com/reportEmbed?reportId=b0ae7ac5-4b3b-4d36-86d0-316751e0751d&autoAuth=true&ctid=eb5d9cdc-7d97-42ed-82de-41dbcbb698fb&config=eyJjbHVzdGVyVXJsIjoiaHR0cHM6Ly9XQUJJLU5PUlRILUVVUk9QRS1CLVBSSU1BUlktcmVkaXJlY3QuYW5hbHlzaXMud2luZG93cy5uZXQiLCJlbWJlZEZlYXR1cmVzIjp7InNob3dGaWx0ZXJQYW5lIjp0cnVlfX0%3d",
+    "geometry": {
+      "x": 850,
+      "y": 50,
+      "width": 1000,
+      "height": 700
+    }
+  },
+  {
+    "id": "sharepoint_document",
+    "url": "https://eocp-my.sharepoint.com/personal/farouq_essadiki_ocpgroup_ma/_layouts/15/Doc.aspx?sourcedoc={ec8739be-46d6-4a11-b10e-598c26d847a8}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdHideHeaders=True&wdDownloadButton=True&wdInConfigurator=True&wdInConfigurator=True",
+    "geometry": {
+      "x": 50,
+      "y": 650,
+      "width": 1100,
+      "height": 400
+    }
   }
 
 ]

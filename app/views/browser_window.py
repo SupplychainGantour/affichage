@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, QRect, QUrl, QPoint
+from PyQt6.QtCore import Qt, QRect, QUrl, QPoint, QTimer
 from PyQt6.QtWidgets import QMainWindow, QWidget
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage
@@ -76,14 +76,82 @@ class CustomWebEnginePage(QWebEnginePage):
             pass
 
     def createWindow(self, _type):
-        new_page = CustomWebEnginePage(self.profile())
-        # load new page in current view for simplicity
+        """Handle popup window requests - create a simple popup that works."""
+        print(f"Pop-up window requested (type: {_type}). Creating popup...")
         try:
-            new_page.urlChanged.connect(self.parent().browser.setUrl)
-        except Exception:
-            pass
-        print("Pop-up window requested.")
-        return new_page
+            # Import here to avoid circular imports
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout
+            
+            # Create a simple dialog instead of QMainWindow
+            popup_dialog = QDialog()
+            popup_dialog.setWindowTitle("Authentication Required")
+            popup_dialog.setModal(False)  # Non-modal so user can interact with main window
+            popup_dialog.resize(800, 600)
+            
+            # Create layout
+            layout = QVBoxLayout()
+            popup_dialog.setLayout(layout)
+            
+            # Create the web view
+            popup_browser = QWebEngineView()
+            layout.addWidget(popup_browser)
+            
+            # Create new page with same profile
+            new_page = CustomWebEnginePage(self.profile(), popup_browser)
+            popup_browser.setPage(new_page)
+            
+            # Store reference to prevent garbage collection
+            if not hasattr(self, '_popup_refs'):
+                self._popup_refs = []
+            self._popup_refs.append((popup_dialog, popup_browser, new_page))
+            
+            # Connect signals
+            def on_load_finished(success):
+                print(f"Popup load finished: {success}")
+                
+            def on_url_changed(url):
+                url_str = url.toString()
+                print(f"Popup URL: {url_str}")
+                
+                # Check for various Microsoft authentication success indicators
+                success_indicators = [
+                    'dashboard', 'authenticated', 'success', 'login_successful',
+                    'app.powerbi.com/reportEmbed', 'app.powerbi.com/groups',
+                    'sharepoint.com/personal', 'sharepoint.com/_layouts',
+                    'office.com/login/success', 'login.microsoftonline.com/common/reprocess',
+                    'powerbi.com/view', 'powerbi.com/reports'
+                ]
+                
+                # Also check for specific Power BI embed URLs
+                if any(indicator in url_str.lower() for indicator in success_indicators):
+                    print("Authentication appears successful, closing popup")
+                    popup_dialog.accept()
+                    if hasattr(self, 'view') and self.view():
+                        # Delay reload to allow session to propagate
+                        def delayed_reload():
+                            self.view().reload()
+                        QTimer.singleShot(1000, delayed_reload)  # 1 second delay
+            
+            new_page.loadFinished.connect(on_load_finished)
+            new_page.urlChanged.connect(on_url_changed)
+            
+            # Show popup in non-blocking way
+            popup_dialog.show()
+            
+            print("Popup dialog created and shown")
+            return new_page
+            
+        except Exception as e:
+            print(f"Error in createWindow: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def acceptNavigationRequest(self, url, _type, isMainFrame):
+        """Handle navigation requests, including popup attempts."""
+        print(f"Navigation request: {url.toString()} (type: {_type}, mainFrame: {isMainFrame})")
+        # Allow all navigation requests
+        return True
 
 
 class BrowserWindow(QMainWindow):
