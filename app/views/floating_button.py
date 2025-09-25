@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QPushButton, QApplication
-from PyQt6.QtCore import Qt, QPoint, QPropertyAnimation, QEasingCurve, QParallelAnimationGroup
+from PyQt6.QtWidgets import QWidget, QPushButton, QApplication, QMenu, QWidgetAction
+from PyQt6.QtCore import Qt, QPoint, QPropertyAnimation, QEasingCurve, QParallelAnimationGroup, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor
 
 def get_scaled_size(base_size):
@@ -119,11 +119,16 @@ class FloatingActionMenu(QWidget):
     A draggable, expandable floating action menu.
     It contains a main button that reveals child action buttons when clicked.
     """
+    
+    # Signals for view management
+    view_switch_requested = pyqtSignal(str)  # Emitted when user wants to switch view
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self._is_expanded = False
         self._child_buttons = []
         self._animation_group = QParallelAnimationGroup()
+        self.view_manager = None  # Will be set from controller
         
         # Main Container Widget Setup
         self.setWindowFlags(
@@ -168,6 +173,55 @@ class FloatingActionMenu(QWidget):
 
         # Initial size is just the main button
         self.resize(self.main_button.size())
+    
+    def set_view_manager(self, view_manager):
+        """Set the view manager for this menu."""
+        self.view_manager = view_manager
+    
+    def show_view_menu(self):
+        """Show a context menu for view switching."""
+        if not self.view_manager:
+            return
+        
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #2d3748;
+                color: white;
+                border: 1px solid #4a5568;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 16px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #4a5568;
+            }
+        """)
+        
+        views = self.view_manager.get_views()
+        current_view_id = self.view_manager.get_current_view_id()
+        
+        for view_id, view_data in views.items():
+            action = menu.addAction(view_data['name'])
+            action.setData(view_id)
+            
+            # Mark current view
+            if view_id == current_view_id:
+                action.setText(f"✓ {view_data['name']}")
+                action.setEnabled(False)
+        
+        # Show menu near the button
+        global_pos = self.main_button.mapToGlobal(QPoint(0, 0))
+        menu.move(global_pos.x() - menu.sizeHint().width(), global_pos.y())
+        
+        action = menu.exec()
+        if action:
+            view_id = action.data()
+            if view_id:
+                self.view_switch_requested.emit(view_id)
 
     def add_action(self, icon_char, action_callable):
         """Adds a new action button to the menu."""

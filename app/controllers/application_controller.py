@@ -1,10 +1,12 @@
 import json
 from PyQt6.QtWidgets import QApplication, QMessageBox, QDialog
 from app.core.profile_manager import WebProfileManager
+from app.core.view_manager import ViewManager
 from app.views.browser_window import BrowserWindow
 from app.views.floating_button import FloatingActionMenu
 from app.views.screen_manager_dialog import ScreenManagerDialog
 from app.views.save_layout_dialog import SaveLayoutDialog
+from app.views.save_view_dialog import SaveViewDialog
 
 class ApplicationController:
     """
@@ -24,9 +26,16 @@ class ApplicationController:
         self._profile_manager = WebProfileManager()
         self._shared_profile = self._profile_manager.get_profile()
         
+        # Initialize view manager
+        self._view_manager = ViewManager()
+        
         self._floating_menu = FloatingActionMenu()
+        self._floating_menu.set_view_manager(self._view_manager)
+        self._floating_menu.view_switch_requested.connect(self.switch_view)
+        
         self._screen_manager = ScreenManagerDialog()
         self._save_layout_dialog = SaveLayoutDialog()
+        self._save_view_dialog = SaveViewDialog()
         self._is_edit_mode = False
 
         self._setup_menu_actions()
@@ -44,13 +53,14 @@ class ApplicationController:
             actions = [
                 ("\u2630", self.open_screen_manager),    # Menu icon
                 ("\u21BB", self.reload_all_pages),       # Reload icon
-                ("\u2713", self.save_current_layout),    # Save icon (checkmark)
+                ("\u2713", self.save_current_view),      # Save icon (checkmark) - now saves view
                 ("\u270E", self.toggle_edit_mode),       # Edit icon (toggle back to normal)
                 ("Q", self.quit_application)             # Quit
             ]
         else:
             # Normal mode actions
             actions = [
+                ("\ud83d\udcca", self._floating_menu.show_view_menu),  # View selector (chart icon)
                 ("\u2630", self.open_screen_manager),    # Menu icon
                 ("\u21BB", self.reload_all_pages),       # Reload icon
                 ("\u270E", self.toggle_edit_mode),       # Edit icon
@@ -97,6 +107,27 @@ class ApplicationController:
             window.set_edit_mode(self._is_edit_mode)
             
         self._floating_menu.toggle_menu() # Auto-close menu
+    
+    def switch_view(self, view_id):
+        """Switch to a specific view."""
+        print(f"[Controller] Switching to view: {view_id}")
+        
+        if self._view_manager.switch_view(view_id):
+            # Apply the view to the current controller
+            self._view_manager.apply_view_to_controller(self)
+            print(f"[Controller] Successfully switched to view: {view_id}")
+        else:
+            print(f"[Controller] Failed to switch to view: {view_id}")
+    
+    def close_all_windows(self):
+        """Close all browser windows."""
+        for window in self._windows.values():
+            window.close()
+        self._windows.clear()
+    
+    def get_screen_size(self):
+        """Get screen dimensions for view calculations."""
+        return self.screen_geometry.width(), self.screen_geometry.height()
 
     # --- THIS METHOD WAS ALSO MISSING ---
     def create_window_from_config(self, config):
@@ -182,14 +213,14 @@ class ApplicationController:
                 normalized_width = geometry.width() / screen_w
                 normalized_height = geometry.height() / screen_h
                 
-                # Create slot data
+                # Create slot data - allow off-screen positioning
                 slot_data = {
                     "id": f"Slot for {window_id}",
                     "geometry": {
-                        "x": max(0.0, min(1.0, normalized_x)),
-                        "y": max(0.0, min(1.0, normalized_y)),
-                        "width": max(0.05, min(1.0, normalized_width)),
-                        "height": max(0.05, min(1.0, normalized_height))
+                        "x": normalized_x,  # No clamping - preserve off-screen positions
+                        "y": normalized_y,  # No clamping - preserve off-screen positions
+                        "width": max(0.05, min(2.0, normalized_width)),   # Allow up to 2x screen width
+                        "height": max(0.05, min(2.0, normalized_height))  # Allow up to 2x screen height
                     }
                 }
                 new_layout["slots"].append(slot_data)
@@ -206,6 +237,149 @@ class ApplicationController:
             except Exception as e:
                 QMessageBox.critical(None, "Save Error", f"Failed to save layout: {str(e)}")
                 print(f"Error saving layout: {e}")
+    
+    def save_current_view(self):
+        """Saves the current window arrangement as either a view or layout."""
+        self._floating_menu.toggle_menu()
+        
+        # Check if there are any visible windows to save
+        visible_windows = {window_id: window for window_id, window in self._windows.items() if window.isVisible()}
+        if not visible_windows:
+            QMessageBox.warning(None, "No Windows", "There are no visible windows to save.")
+            return
+            
+        # Show the save view dialog
+        if self._save_view_dialog.exec() == QDialog.DialogCode.Accepted:
+            save_data = self._save_view_dialog.get_save_data()
+            
+            if save_data["type"] == "view":
+                self._save_as_view(save_data, visible_windows)
+            else:
+                self._save_as_layout_from_view_dialog(save_data, visible_windows)
+    
+    def _save_as_view(self, save_data, visible_windows):
+        """Save current arrangement as a view."""
+        view_id = save_data["name"].lower().replace(" ", "_")
+        
+        # Check if view already exists
+        if self._view_manager.get_view(view_id):
+            reply = QMessageBox.question(
+                None,
+                "View Exists",
+                f"A view named '{save_data['name']}' already exists. Do you want to overwrite it?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        
+        # Get screen dimensions for normalization
+        screen_w = self.screen_geometry.width()
+        screen_h = self.screen_geometry.height()
+        
+        # Create window definitions with positions and IDs
+        windows = []
+        for window_id, window in visible_windows.items():
+            geometry = window.geometry()
+            
+            # Normalize coordinates to 0.0-1.0 range
+            normalized_x = geometry.x() / screen_w
+            normalized_y = geometry.y() / screen_h
+            normalized_width = geometry.width() / screen_w
+            normalized_height = geometry.height() / screen_h
+            
+            window_def = {
+                "id": window_id,
+                "position": {
+                    "x": normalized_x,  # No clamping - preserve off-screen positions
+                    "y": normalized_y,  # No clamping - preserve off-screen positions
+                    "width": max(0.05, min(2.0, normalized_width)),   # Allow up to 2x screen width
+                    "height": max(0.05, min(2.0, normalized_height))  # Allow up to 2x screen height
+                }
+            }
+            windows.append(window_def)
+        
+        # Create or update the view
+        success = self._view_manager.create_view(
+            view_id=view_id,
+            name=save_data["name"],
+            description=save_data["description"] or f"Custom view: {save_data['name']}",
+            layout=view_id,  # Use view_id as layout name
+            windows=windows
+        ) or self._view_manager.update_view(
+            view_id=view_id,
+            name=save_data["name"],
+            description=save_data["description"] or f"Custom view: {save_data['name']}",
+            layout=view_id,
+            windows=windows
+        )
+        
+        if success:
+            QMessageBox.information(None, "View Saved", f"View '{save_data['name']}' has been saved successfully!")
+            print(f"Saved view '{save_data['name']}' with {len(windows)} windows")
+        else:
+            QMessageBox.critical(None, "Save Error", "Failed to save view.")
+    
+    def _save_as_layout_from_view_dialog(self, save_data, visible_windows):
+        """Save current arrangement as a layout (from view dialog)."""
+        layout_name = save_data["name"]
+        
+        # Check if layout name already exists
+        if layout_name in self._layouts_data:
+            reply = QMessageBox.question(
+                None,
+                "Layout Exists",
+                f"A layout named '{layout_name}' already exists. Do you want to overwrite it?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        
+        # Create the new layout data
+        new_layout = {
+            "description": save_data["description"] or f"Custom layout: {layout_name}",
+            "slots": []
+        }
+        
+        # Get screen dimensions for normalization
+        screen_w = self.screen_geometry.width()
+        screen_h = self.screen_geometry.height()
+        
+        # Capture current window positions
+        for window_id, window in visible_windows.items():
+            geometry = window.geometry()
+            
+            # Normalize coordinates to 0.0-1.0 range
+            normalized_x = geometry.x() / screen_w
+            normalized_y = geometry.y() / screen_h
+            normalized_width = geometry.width() / screen_w
+            normalized_height = geometry.height() / screen_h
+            
+            # Create slot data - allow off-screen positioning
+            slot_data = {
+                "id": f"Slot for {window_id}",
+                "geometry": {
+                    "x": normalized_x,  # No clamping - preserve off-screen positions
+                    "y": normalized_y,  # No clamping - preserve off-screen positions
+                    "width": max(0.05, min(2.0, normalized_width)),   # Allow up to 2x screen width
+                    "height": max(0.05, min(2.0, normalized_height))  # Allow up to 2x screen height
+                }
+            }
+            new_layout["slots"].append(slot_data)
+        
+        # Add the new layout to our data
+        self._layouts_data[layout_name] = new_layout
+        
+        # Save to file
+        try:
+            with open(self._layouts_path, 'w') as f:
+                json.dump(self._layouts_data, f, indent=2)
+            QMessageBox.information(None, "Layout Saved", f"Layout '{layout_name}' has been saved successfully!")
+            print(f"Saved layout '{layout_name}' with {len(new_layout['slots'])} slots")
+        except Exception as e:
+            QMessageBox.critical(None, "Save Error", f"Failed to save layout: {str(e)}")
+            print(f"Error saving layout: {e}")
 
     def apply_layout(self, layout_name, assignments):
         """

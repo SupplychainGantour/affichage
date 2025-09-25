@@ -1,0 +1,145 @@
+{
+  "dashboard": {
+    "name": "Dashboard View",
+    "description": "Main dashboard with Power BI and SharePoint",
+    "layout": "default",
+    "windows": [
+      {
+        "id": "powerbi_report",
+        "position": {
+          "x": 0.5,
+          "y": 0.0,
+          "width": 0.5,
+          "height": 0.7
+        }
+      },
+      {
+        "id": "sharepoint_document",
+        "position": {
+          "x": 0.0,
+          "y": 0.65,
+          "width": 1.0,
+          "height": 0.35
+        }
+      }
+    ]
+  },
+  "monitoring": {
+    "name": "Process Monitoring",
+    "description": "PI Vision process monitoring view",
+    "layout": "monitoring",
+    "windows": [
+      {
+        "id": "google_search",
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 1.0,
+          "height": 1.0
+        }
+      }
+    ]
+  },
+  "sidebar": {
+    "name": "Sidebar Layout",
+    "description": "Power BI as right sidebar, PI Vision main frame, SharePoint bottom-left",
+    "layout": "sidebar",
+    "windows": [
+      {
+        "id": "google_search",
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 0.7,
+          "height": 0.6
+        }
+      },
+      {
+        "id": "powerbi_report",
+        "position": {
+          "x": 0.7,
+          "y": 0.0,
+          "width": 0.3,
+          "height": 1.0
+        }
+      },
+      {
+        "id": "sharepoint_document",
+        "position": {
+          "x": 0.0,
+          "y": 0.6,
+          "width": 0.7,
+          "height": 0.4
+        }
+      }
+    ]
+  },
+  "overview": {
+    "name": "Complete Overview",
+    "description": "All windows visible for comprehensive monitoring",
+    "layout": "overview",
+    "windows": [
+      {
+        "id": "powerbi_report",
+        "position": {
+          "x": 0.5,
+          "y": 0.0,
+          "width": 0.5,
+          "height": 0.6
+        }
+      },
+      {
+        "id": "google_search",
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 0.5,
+          "height": 0.6
+        }
+      },
+      {
+        "id": "sharepoint_document",
+        "position": {
+          "x": 0.0,
+          "y": 0.6,
+          "width": 1.0,
+          "height": 0.4
+        }
+      }
+    ]
+  },
+  "uc_view": {
+    "name": "UC_VIEW",
+    "description": "Custom view: UC_VIEW",
+    "layout": "uc_view",
+    "windows": [
+      {
+        "id": "google_search",
+        "position": {
+          "x": -0.05078125,
+          "y": -0.06666666666666667,
+          "width": 0.85390625,
+          "height": 0.8111111111111111
+        }
+      },
+      {
+        "id": "powerbi_report",
+        "position": {
+          "x": 0.7953125,
+          "y": 0.0,
+          "width": 0.20546875,
+          "height": 1.0
+        }
+      },
+      {
+        "id": "sharepoint_document",
+        "position": {
+          "x": 0.0,
+          "y": 0.7319444444444444,
+          "width": 0.7953125,
+          "height": 0.4083333333333333
+        }
+      }
+    ]
+  }
+}
