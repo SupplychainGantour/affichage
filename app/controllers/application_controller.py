@@ -107,7 +107,7 @@ class ApplicationController:
 
         geo = config.get("geometry", {})
         window = BrowserWindow(profile=self._shared_profile)
-        window.load_url(config.get("url", "about:blank"))
+        window.load_url(config.get("url", "about:blank"), window_id=window_id)
         window.set_geometry(
             geo.get("x", 100), geo.get("y", 100),
             geo.get("width", 800), geo.get("height", 600)

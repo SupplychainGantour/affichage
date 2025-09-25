@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QRect, QUrl, QPoint, QTimer
-from PyQt6.QtWidgets import QMainWindow, QWidget, QSlider, QLabel, QHBoxLayout
+from PyQt6.QtWidgets import QMainWindow, QWidget, QSlider, QLabel, QHBoxLayout, QVBoxLayout
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtGui import QPainter, QColor, QPen, QBrush
@@ -240,6 +240,14 @@ class BrowserWindow(QMainWindow):
         super().__init__(parent)
         self.setWindowTitle("Authenticated Browser")
         self.setGeometry(50, 50, 1280, 800)
+        
+        # Initialize background refresh properties
+        self.window_id = None
+        self.current_url = None
+        self.refresh_timer = None
+        self.background_browser = None  # QWebEngineView used in preloader window
+        self.background_window = None   # Offscreen QMainWindow hosting background_browser
+        self.profile = profile
 
         # Create a container widget for the border effect
         container = QWidget()
@@ -291,8 +299,17 @@ class BrowserWindow(QMainWindow):
                 pass
 
 
-    def load_url(self, url):
+    def load_url(self, url, window_id=None):
         print("Loading:", url)
+        
+        # Store window ID and URL for potential background refresh
+        self.window_id = window_id
+        self.current_url = url
+        
+        # Start background refresh timer for SharePoint document
+        if window_id == "sharepoint_document":
+            self._setup_background_refresh()
+        
         # If we have explicit creds, attempt NTLM session first to prime cookies
         try:
             pm = WebProfileManager()
@@ -301,6 +318,175 @@ class BrowserWindow(QMainWindow):
         except Exception as e:
             print("[auth] NTLM pre-injection failed:", e)
         self.browser.setUrl(QUrl(url))
+    
+    def _setup_background_refresh(self):
+        """Setup background refresh timer for SharePoint document."""
+        if self.refresh_timer:
+            self.refresh_timer.stop()
+        
+        self.refresh_timer = QTimer()
+        self.refresh_timer.timeout.connect(self._start_background_load)
+        self.refresh_timer.start(60000)  # 60 seconds
+        print("[refresh] Background refresh timer started for SharePoint document (60s)")
+    
+    def _start_background_load(self):
+        """Start loading the page in an offscreen preloader window."""
+        if not self.current_url:
+            return
+            
+        print("[refresh] Starting background load...")
+        
+        # Clean up any previous preloader window
+        if self.background_window:
+            try:
+                self.background_window.close()
+                self.background_window.deleteLater()
+            except Exception:
+                pass
+            self.background_window = None
+            self.background_browser = None
+
+        # Create an offscreen preloader window so rendering is decoupled from layout
+        from PyQt6.QtWidgets import QMainWindow as _QMainWindow
+        self.background_window = _QMainWindow(None)
+        # Make it a tool window without taskbar and frameless
+        self.background_window.setWindowFlags(
+            Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint
+        )
+        # Fully transparent and offscreen
+        self.background_window.setWindowOpacity(0.0)
+        self.background_window.move(-20000, -20000)
+        # Match the size of the visible browser to avoid re-layout cost later
+        self.background_window.resize(self.browser.size())
+
+        # Create the background view inside the preloader window
+        self.background_browser = QWebEngineView(self.background_window)
+        new_page = CustomWebEnginePage(self.profile, self)
+        self.background_browser.setPage(new_page)
+        self.background_window.setCentralWidget(self.background_browser)
+        
+        # Track loading progress to ensure 100% completion
+        self.background_load_progress = 0
+        self.background_browser.loadProgress.connect(self._on_background_load_progress)
+        
+        # Apply styling immediately (same as visible one)
+        self.background_browser.setStyleSheet("""
+            QWebEngineView {
+                border: none;
+                background-color: white;
+                border-radius: 5px;
+            }
+        """)
+        
+        # Make the window visible (opacity 0) so Chromium actually renders frames
+        # Avoid input and ensure it's truly background
+        self.background_browser.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.background_window.show()
+        
+        # Connect to load finished signal
+        self.background_browser.loadFinished.connect(self._on_background_load_finished)
+        
+        # Prepare background browser with authentication
+        try:
+            pm = WebProfileManager()
+            if pm.has_credentials():
+                pm.ntlm_session_and_inject(self.current_url)
+        except Exception as e:
+            print("[refresh] NTLM pre-injection failed:", e)
+            
+        # Start loading in background
+        self.background_browser.setUrl(QUrl(self.current_url))
+    
+    def _on_background_load_progress(self, progress):
+        """Track background loading progress."""
+        self.background_load_progress = progress
+        if progress % 20 == 0:  # Log every 20% to avoid spam
+            print(f"[refresh] Background load progress: {progress}%")
+    
+    def _on_background_load_finished(self, success):
+        """Handle background load completion and swap browsers with smooth transition."""
+        if not success or not self.background_browser:
+            print("[refresh] Background load failed, keeping current browser")
+            return
+            
+        # Ensure we actually reached 100% progress
+        if self.background_load_progress < 100:
+            print(f"[refresh] Load finished but progress only {self.background_load_progress}%, waiting more...")
+            QTimer.singleShot(1000, lambda: self._on_background_load_finished(True))
+            return
+            
+        print(f"[refresh] Background load completed (100%), waiting for rendering...")
+        
+        # Reduced delay since geometry is set from the beginning
+        QTimer.singleShot(2000, self._check_and_perform_swap)  # Reduced to 2 seconds
+    
+    def _check_and_perform_swap(self):
+        """Check if page is ready and perform the swap."""
+        if not self.background_browser:
+            return
+            
+        print("[refresh] Checking page rendering state...")
+        
+        # Force a repaint to ensure everything is rendered
+        self.background_browser.repaint()
+        self.background_browser.update()
+        
+        # Reduced additional delay since geometry is correct from start
+        QTimer.singleShot(1000, self._perform_smooth_swap)  # Reduced to 1 second
+    
+    def _perform_smooth_swap(self):
+        """Perform the actual swap by moving the loaded page into the visible view."""
+        if not self.background_browser:
+            return
+        print("[refresh] Performing smooth browser page swap...")
+
+        # Fade out current content instantly to avoid flash
+        self.browser.setWindowOpacity(0.0)
+        
+        # Swap pages: take the page from background view and assign to visible view
+        try:
+            old_page = self.browser.page()
+            new_page = self.background_browser.page()
+            self.browser.setPage(new_page)
+            # Restore handlers if needed (already CustomWebEnginePage)
+            self.page = new_page
+            # Reconnect auth handler to the new page if credentials exist
+            if WebProfileManager().has_credentials():
+                try:
+                    self.page.authenticationRequired.connect(self._on_auth_required)
+                except Exception:
+                    pass
+            # Clean up old page to free resources
+            if old_page is not None:
+                old_page.deleteLater()
+        except Exception as e:
+            print(f"[refresh] Error during page swap: {e}")
+        
+        # Fade in the new content
+        self.browser.setWindowOpacity(1.0)
+        
+        # Cleanup the preloader window and its view
+        QTimer.singleShot(50, self._cleanup_preloader)
+    
+    def _cleanup_preloader(self):
+        """Dispose of the offscreen preloader window and reset state."""
+        try:
+            if self.background_window:
+                self.background_window.close()
+                self.background_window.deleteLater()
+        except Exception:
+            pass
+        self.background_window = None
+        self.background_browser = None
+    
+    # Remove old widget-swap path; page swap is used instead
+        
+    def _cleanup_old_browser(self, old_browser):
+        """Clean up the old browser widget."""
+        try:
+            old_browser.deleteLater()
+        except Exception as e:
+            print(f"[refresh] Error cleaning up old browser: {e}")
 
     def set_geometry(self, x, y, width, height):
         """Set the geometry of the browser window."""
@@ -332,3 +518,17 @@ class BrowserWindow(QMainWindow):
         super().resizeEvent(event)
         if self.edit_overlay.isVisible():
             self.edit_overlay.setGeometry(self.rect())
+    
+    def closeEvent(self, event):
+        """Clean up resources when closing the window."""
+        if self.refresh_timer:
+            self.refresh_timer.stop()
+        if self.background_browser:
+            self.background_browser.deleteLater()
+        if self.background_window:
+            try:
+                self.background_window.close()
+                self.background_window.deleteLater()
+            except Exception:
+                pass
+        super().closeEvent(event)
