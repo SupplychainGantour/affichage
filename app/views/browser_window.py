@@ -241,14 +241,41 @@ class BrowserWindow(QMainWindow):
         self.setWindowTitle("Authenticated Browser")
         self.setGeometry(50, 50, 1280, 800)
 
+        # Create a container widget for the border effect
+        container = QWidget()
+        container.setStyleSheet("""
+            QWidget {
+                background-color: #2d5a2d;
+                border-radius: 8px;
+                padding: 3px;
+            }
+        """)
+        
+        # Create layout for container
+        from PyQt6.QtWidgets import QVBoxLayout
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(3, 3, 3, 3)
+        container_layout.setSpacing(0)
+
         self.page = CustomWebEnginePage(profile, self)
         self.browser = QWebEngineView(self)
         self.browser.setPage(self.page)
-        self.setCentralWidget(self.browser)
+        
+        # Style the browser view
+        self.browser.setStyleSheet("""
+            QWebEngineView {
+                border: none;
+                background-color: white;
+            }
+        """)
+        
+        # Add browser to container
+        container_layout.addWidget(self.browser)
+        self.setCentralWidget(container)
 
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-        # PyQt6: widget attributes are in Qt.WidgetAttribute
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        # Remove translucent background to show borders
+        # self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
         self.edit_overlay = EditOverlay(self)
         self.edit_overlay.hide()
