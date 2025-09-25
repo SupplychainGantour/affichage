@@ -7,6 +7,7 @@ from app.views.floating_button import FloatingActionMenu
 from app.views.screen_manager_dialog import ScreenManagerDialog
 from app.views.save_layout_dialog import SaveLayoutDialog
 from app.views.save_view_dialog import SaveViewDialog
+from app.views.view_selector_bar import ViewSelectorBar
 
 class ApplicationController:
     """
@@ -28,6 +29,10 @@ class ApplicationController:
         
         # Initialize view manager
         self._view_manager = ViewManager()
+        
+        # Initialize view selector bar
+        self._view_selector = ViewSelectorBar(self._view_manager)
+        self._view_selector.view_selected.connect(self._on_view_selected)
         
         self._floating_menu = FloatingActionMenu()
         self._floating_menu.set_view_manager(self._view_manager)
@@ -71,15 +76,27 @@ class ApplicationController:
         
 
     def run(self):
-        """Loads configs and shows all initial windows and the menu."""
-        # This call will now work because the method is present
+        """Shows the view selector bar instead of loading windows immediately."""
+        # Load configs for later use
         self._load_configs()
-
-        for config in self._window_configs:
-            self.create_window_from_config(config)
         
+        # Show only the view selector bar on startup
+        self._view_selector.show_centered()
+        print("View selector shown - waiting for user selection...")
+
+    def _on_view_selected(self, view_id):
+        """Handle view selection from the view selector bar."""
+        print(f"User selected view: {view_id}")
+        
+        # Switch to the selected view
+        self.switch_view(view_id)
+        
+        # Show the floating menu after view is loaded
         self._floating_menu.show()
         self._floating_menu.move(10, 10)
+        
+        # Update menu actions
+        self._update_menu_actions()
 
     # --- THIS METHOD WAS MISSING ---
     def _load_configs(self):
