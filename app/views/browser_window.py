@@ -73,6 +73,7 @@ class EditOverlay(QWidget):
         # Apply zoom to the parent browser window
         if hasattr(self.parent(), 'browser'):
             self.parent().browser.setZoomFactor(zoom_factor)
+            print(f"[DEBUG] Zoom changed to {value}% (factor: {zoom_factor}) for window")
 
     def show_zoom_controls(self):
         """Show the zoom slider widget."""
@@ -318,6 +319,22 @@ class BrowserWindow(QMainWindow):
         except Exception as e:
             print("[auth] NTLM pre-injection failed:", e)
         self.browser.setUrl(QUrl(url))
+    
+    def get_zoom_level(self):
+        """Get current zoom level as percentage."""
+        zoom_factor = self.browser.zoomFactor()
+        zoom_percentage = int(zoom_factor * 100)
+        print(f"[DEBUG] Getting zoom level: factor={zoom_factor}, percentage={zoom_percentage}")
+        return zoom_percentage
+    
+    def set_zoom_level(self, zoom_percentage):
+        """Set zoom level from percentage."""
+        zoom_factor = zoom_percentage / 100.0
+        self.browser.setZoomFactor(zoom_factor)
+        
+        # Update the zoom slider if overlay is active
+        if hasattr(self.edit_overlay, '_zoom_slider'):
+            self.edit_overlay._zoom_slider.setValue(zoom_percentage)
     
     def _setup_background_refresh(self):
         """Setup background refresh timer for SharePoint document."""

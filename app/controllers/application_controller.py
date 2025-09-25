@@ -238,7 +238,8 @@ class ApplicationController:
                         "y": normalized_y,  # No clamping - preserve off-screen positions
                         "width": max(0.05, min(2.0, normalized_width)),   # Allow up to 2x screen width
                         "height": max(0.05, min(2.0, normalized_height))  # Allow up to 2x screen height
-                    }
+                    },
+                    "zoom": window.get_zoom_level() if hasattr(window, 'get_zoom_level') else 100
                 }
                 new_layout["slots"].append(slot_data)
             
@@ -312,8 +313,14 @@ class ApplicationController:
                     "y": normalized_y,  # No clamping - preserve off-screen positions
                     "width": max(0.05, min(2.0, normalized_width)),   # Allow up to 2x screen width
                     "height": max(0.05, min(2.0, normalized_height))  # Allow up to 2x screen height
-                }
+                },
+                "zoom": window.get_zoom_level() if hasattr(window, 'get_zoom_level') else 100
             }
+            print(f"[Save] Window {window_id} - Zoom: {window_def['zoom']}%")
+            
+            # Debug: Print zoom level being saved
+            zoom_level = window.get_zoom_level() if hasattr(window, 'get_zoom_level') else 100
+            print(f"[DEBUG] Saving window {window_id} with zoom level: {zoom_level}")
             windows.append(window_def)
         
         # Create or update the view
@@ -381,7 +388,8 @@ class ApplicationController:
                     "y": normalized_y,  # No clamping - preserve off-screen positions
                     "width": max(0.05, min(2.0, normalized_width)),   # Allow up to 2x screen width
                     "height": max(0.05, min(2.0, normalized_height))  # Allow up to 2x screen height
-                }
+                },
+                "zoom": window.get_zoom_level() if hasattr(window, 'get_zoom_level') else 100
             }
             new_layout["slots"].append(slot_data)
         
@@ -437,6 +445,11 @@ class ApplicationController:
                 window_to_configure.set_geometry(
                     pixel_x, pixel_y, pixel_w, pixel_h
                 )
+                
+                # Apply zoom level if saved
+                if "zoom" in slot and hasattr(window_to_configure, 'set_zoom_level'):
+                    window_to_configure.set_zoom_level(slot["zoom"])
+                    
                 window_to_configure.show()
         
         for page_id, window in self._windows.items():

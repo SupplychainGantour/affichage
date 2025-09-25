@@ -222,6 +222,13 @@ class ViewManager(QObject):
                 # Create the window
                 if hasattr(controller, 'create_window_from_config'):
                     controller.create_window_from_config(window_config)
+                    
+                    # Apply zoom level if saved and window was created
+                    if 'zoom' in window_def and hasattr(controller, '_windows') and window_id in controller._windows:
+                        window = controller._windows[window_id]
+                        if hasattr(window, 'set_zoom_level'):
+                            window.set_zoom_level(window_def['zoom'])
+                            print(f"[ViewManager] Applied zoom level {window_def['zoom']}% to window {window_id}")
         
         print(f"[ViewManager] Applied view '{view['name']}'")
         return True
